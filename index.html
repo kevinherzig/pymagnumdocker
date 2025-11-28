@@ -388,7 +388,7 @@
       if (inverter?.data?.fault && inverter.data.fault !== 0) {
         dot.classList.add("error");
         statusText = inverter.data.fault_text || "Fault";
-      } else if (bmk?.data?.Fault && bmk.data.Fault !== 0) {
+      } else if (bmk?.data?.Fault && bmk.data.Fault !== 1) {
         dot.classList.add("error");
         statusText = bmk.data.Fault_Text || "BMK Fault";
       }
