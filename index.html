@@ -252,7 +252,7 @@
       <div class="header">
         <div>
           <h1>
-            Power System Status
+            MAGNUM Energy Systems Status
             <span class="pill">Live JSON</span>
           </h1>
           <p id="metaInfo" class="subtle">
@@ -412,7 +412,9 @@
         chip.className = "status-chip";
         const soc = bmk.data.soc ?? "?";
         const vdc = bmk.data.vdc ?? "?";
-        chip.textContent = `Battery: ${soc}% · ${vdc} VDC`;
+        const amps = bmk.data.adc ?? "?";
+        const watts = bmk.data.vdc * bmk.data.adc ?? "?";
+        chip.textContent = `Battery: Charge: ${soc}% · Volts: ${vdc} · Amps: ${amps} · Watts:${watts.toFixed(1)}`;
         summaryEl.appendChild(chip);
       }
     }
