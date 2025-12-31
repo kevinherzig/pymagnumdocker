@@ -6,6 +6,8 @@ I created a docker image tested on simple, cheap hardware.  I'll highlight the h
 
 This is an advanced undertaking.  I'm not going to get into details about how to install the OS, set it all up, use SSH to install things, and configure your router for access. 
 
+[Live Example](https://magnum.herzig.net/)
+
 **HARDWARE**
 
 This image runs great on a Raspberry PI 2W.  
