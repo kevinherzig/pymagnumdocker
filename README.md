@@ -6,6 +6,8 @@ I created a docker image tested on simple, cheap hardware.  I'll highlight the h
 
 This is an advanced undertaking.  I'm not going to get into details about how to install the OS, set it all up, use SSH to install things, and configure your router for access. 
 
+Here is a live example.  This link will bring you to my magnum running in my RV.
+
 [Live Example](https://magnum.herzig.net/)
 
 **HARDWARE**
