@@ -13,7 +13,9 @@ import sys
 import os
 from datetime import datetime, timezone
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import socket
+
 
 import magnum
 from magnum.magnum import Magnum
@@ -33,6 +35,13 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 
 class magServer(BaseHTTPRequestHandler):
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except (ConnectionResetError, BrokenPipeError, socket.timeout):
+            # Client went away mid-request; ignore to avoid noisy tracebacks
+            return
+        
     def log_request(self, code='-', size='-'):
         #
         # suppress OK type messages
@@ -120,7 +129,7 @@ class magServer(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
 
-def run(server_class=HTTPServer, handler_class=magServer, addr="", port=17223):
+def run(server_class=ThreadingHTTPServer, handler_class=magServer, addr="", port=17223):
     server_address = (addr, port)
     httpd = server_class(server_address, handler_class)
     print(f"Starting Magnum Reader on {addr}:{port}")
