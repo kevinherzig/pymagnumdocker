@@ -1,0 +1,11 @@
+services:
+  magnum:
+    build: .
+    container_name: magnum-dotnet
+    restart: unless-stopped
+    ports:
+      - "17223:17223"
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    volumes:
+      - ./src/Magnum.Server/appsettings.json:/app/appsettings.json:ro
