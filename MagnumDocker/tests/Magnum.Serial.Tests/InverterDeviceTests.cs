@@ -44,7 +44,8 @@ public class InverterDeviceTests
         var device = new InverterDevice();
         device.Parse(TestPackets.Inverter, PacketType.Inv, 0);
         var data = device.GetData();
-        Assert.Equal("MS4024PAE", data["model"]);
+        Assert.Equal(107, data["model"]);
+        Assert.Equal("MS4024PAE", data["model_text"]);
     }
 
     [Fact]
@@ -53,7 +54,8 @@ public class InverterDeviceTests
         var device = new InverterDevice();
         device.Parse(TestPackets.Inverter, PacketType.Inv, 0);
         var data = device.GetData();
-        Assert.Equal("Parallel stack - master", data["stackmode"]);
+        Assert.Equal(1, data["stackmode"]);
+        Assert.Equal("Parallel stack - master", data["stackmode_text"]);
     }
 
     [Fact]
@@ -88,7 +90,7 @@ public class InverterDeviceTests
         var device = new InverterDevice();
         device.Parse(TestPackets.Inverter, PacketType.Inv, 0);
         var data = device.GetData();
-        Assert.Equal(17.0, data["battemp"]);
+        Assert.Equal(17.0, data["bat"]);
         Assert.Equal(51.0, data["tfmr"]);
         Assert.Equal(36.0, data["FET"]);
     }

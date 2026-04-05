@@ -36,7 +36,7 @@ public class Pt100Device : IDeviceParser
         int flagsByte = ReadByte(packet, 12);
         int relay = flagsByte & 0x01;
         int alarm = (flagsByte >> 1) & 0x01;
-        int fan = (flagsByte >> 2) & 0x01;
+        int fan = (flagsByte >> 3) & 0x01;
         int day = (flagsByte >> 4) & 0x01;
 
         int batteryTempRaw = ReadByte(packet, 13);
@@ -73,21 +73,25 @@ public class Pt100Device : IDeviceParser
         int address = ReadByte(packet, 1);
         int lifetime = ReadUInt16(packet, 2) * 10;
         double resettable = ReadUInt16(packet, 4) / 10.0;
-        int groundFault = ReadByte(packet, 6);
-        int stacker = ReadByte(packet, 7);
+        int groundFaultCurrent = ReadByte(packet, 6);
+        int stackerByte = ReadByte(packet, 7);
+        int stackerInfo = stackerByte >> 2;
+        int nomBatRaw = stackerByte & 0x03;
+        string nominalBatteryVoltage = nomBatRaw == 0 ? "12V" : (nomBatRaw * 24) + "V";
         int dip = ReadByte(packet, 8);
         double revision = ReadByte(packet, 9) / 10.0;
-        int outputCurrent = ReadByte(packet, 10);
-        int inputVoltage = ReadByte(packet, 11) * 10;
+        int outputCurrentRating = ReadByte(packet, 10);
+        int inputVoltageRating = ReadByte(packet, 11) * 10;
 
         _data["lifetime_kwhrs"] = lifetime;
         _data["resettable_kwhrs"] = resettable;
-        _data["ground_fault"] = groundFault;
-        _data["stacker"] = stacker;
-        _data["dip"] = Convert.ToString(dip, 2).PadLeft(8, '0');
+        _data["ground_fault_current"] = groundFaultCurrent;
+        _data["stacker_info"] = stackerInfo;
+        _data["nominal_battery_voltage"] = nominalBatteryVoltage;
+        _data["dip_switches"] = Convert.ToString(dip, 2).PadLeft(8, '0');
         _data["revision"] = revision;
-        _data["output_current"] = outputCurrent;
-        _data["input_voltage"] = inputVoltage;
+        _data["output_current_rating"] = outputCurrentRating;
+        _data["input_voltage_rating"] = inputVoltageRating;
     }
 
     public Dictionary<string, object> GetData() => new(_data);

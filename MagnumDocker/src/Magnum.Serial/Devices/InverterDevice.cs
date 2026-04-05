@@ -5,7 +5,7 @@ namespace Magnum.Serial.Devices;
 
 public class InverterDevice : IDeviceParser
 {
-    public string DeviceType => "Inverter";
+    public string DeviceType => "INVERTER";
     public int VoltageMultiplier { get; private set; }
 
     private readonly Dictionary<string, object> _data = new();
@@ -19,8 +19,10 @@ public class InverterDevice : IDeviceParser
         double adc = ReadInt16(packet, 4);
         double vacOut = ReadByte(packet, 6);
         double vacIn = ReadByte(packet, 7);
-        int invled = ReadByte(packet, 8);
-        int chgled = ReadByte(packet, 9);
+        int invLedRaw = ReadByte(packet, 8);
+        int chgLedRaw = ReadByte(packet, 9);
+        int invled = invLedRaw != 0 ? 1 : 0;
+        int chgled = chgLedRaw != 0 ? 1 : 0;
         double revision = ReadByte(packet, 10) / 10.0;
         double battemp = ReadByte(packet, 11);
         double tfmr = ReadByte(packet, 12);
@@ -38,18 +40,22 @@ public class InverterDevice : IDeviceParser
         _data["VACout"] = vacOut;
         _data["VACin"] = vacIn;
         _data["invled"] = invled;
+        _data["invled_text"] = invled == 0 ? "Off" : "On";
         _data["chgled"] = chgled;
+        _data["chgled_text"] = chgled == 0 ? "Off" : "On";
         _data["revision"] = revision;
-        _data["battemp"] = battemp;
+        _data["bat"] = battemp;
         _data["tfmr"] = tfmr;
         _data["FET"] = fet;
-        _data["model"] = InverterLookups.Models.GetValueOrDefault(model, "Unknown");
+        _data["model"] = model;
+        _data["model_text"] = InverterLookups.Models.GetValueOrDefault(model, model.ToString());
 
         // INV-only fields (21-byte packet)
         if (packetType == PacketType.Inv)
         {
             int stackmode = ReadByte(packet, 15);
-            _data["stackmode"] = InverterLookups.StackModes.GetValueOrDefault(stackmode, "Unknown");
+            _data["stackmode"] = stackmode;
+            _data["stackmode_text"] = InverterLookups.StackModes.GetValueOrDefault(stackmode, stackmode.ToString());
             _data["AACin"] = (double)ReadByte(packet, 16);
             _data["AACout"] = (double)ReadByte(packet, 17);
             _data["Hz"] = ReadInt16(packet, 18) / 10.0;

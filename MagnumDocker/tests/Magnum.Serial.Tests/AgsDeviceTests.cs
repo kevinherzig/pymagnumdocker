@@ -12,7 +12,8 @@ public class AgsDeviceTests
         var device = new AgsDevice();
         device.Parse(TestPackets.AgsA1, PacketType.AgsA1, 2);
         var data = device.GetData();
-        Assert.Equal("Ready", data["status"]);
+        Assert.Equal(2, data["status"]);
+        Assert.Equal("Ready", data["status_text"]);
     }
 
     [Fact]

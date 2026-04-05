@@ -27,11 +27,14 @@ public class AgsDevice : IDeviceParser
         double vdc = ReadByte(packet, 5) / 10.0 * voltageMultiplier;
 
         // Temperature conversion: F to C, but only if < 105F (otherwise sensor fault)
-        double tempC = Math.Round((tempF - 32) * 5.0 / 9.0, 1);
+        double temp = (double)tempF;
+        if (temp < 105.0)
+            temp = Math.Round((temp - 32) * 5.0 / 9.0, 1);
 
-        _data["status"] = AgsLookups.Statuses.GetValueOrDefault(statusCode, "Unknown");
+        _data["status"] = statusCode;
+        _data["status_text"] = AgsLookups.Statuses.GetValueOrDefault(statusCode, statusCode.ToString());
         _data["revision"] = revision;
-        _data["temp"] = tempC;
+        _data["temp"] = temp;
         _data["runtime"] = runtime;
         _data["vdc"] = vdc;
         _data["running"] = AgsLookups.RunningStatuses.Contains(statusCode);

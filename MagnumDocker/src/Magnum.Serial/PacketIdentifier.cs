@@ -85,6 +85,16 @@ public static class PacketIdentifier
 
         if (last == 0x00)
         {
+            // Check for Remote00: last 7 bytes all zero
+            bool lastSevenZero = true;
+            for (int i = 14; i < 21; i++)
+            {
+                if (packet[i] != 0x00) { lastSevenZero = false; break; }
+            }
+            if (lastSevenZero)
+                return PacketType.Remote00;
+
+            // Check for inverter by model lookup
             if (InverterLookups.Models.ContainsKey(packet[14]))
                 return PacketType.Inv;
 

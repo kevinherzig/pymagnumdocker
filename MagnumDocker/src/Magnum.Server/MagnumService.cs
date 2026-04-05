@@ -6,6 +6,7 @@ public class MagnumService : IDisposable
 {
     private readonly Dictionary<string, MagnumReader> _readers = new();
     private readonly ILogger<MagnumService> _logger;
+    private readonly object _lock = new();
 
     public MagnumService(ILogger<MagnumService> logger)
     {
@@ -21,6 +22,8 @@ public class MagnumService : IDisposable
 
     public IResult GetAllDeviceData()
     {
+      lock (_lock)
+      {
         var response = new List<object>();
         int? errorCode = null;
         string? errorMessage = null;
@@ -70,6 +73,7 @@ public class MagnumService : IDisposable
         return errorCode == 204
             ? Results.NoContent()
             : Results.Problem(errorMessage, statusCode: errorCode ?? 500);
+      }
     }
 
     public void Dispose()

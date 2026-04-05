@@ -4,7 +4,7 @@ namespace Magnum.Serial.Devices;
 
 public class RemoteDevice : IDeviceParser
 {
-    public string DeviceType => "Remote";
+    public string DeviceType => "REMOTE";
 
     private readonly Dictionary<string, object> _data = new();
 
@@ -24,7 +24,7 @@ public class RemoteDevice : IDeviceParser
         double lbco = ReadByte(packet, 9) / 10.0;
         double vaccutout = (double)ReadByte(packet, 10);
         double vsfloat = ReadByte(packet, 11) * mult / 10.0;
-        double absorbVoltage = absorbRaw > 100 ? absorbRaw * mult / 10.0 : 0;
+        double absorbVoltage = absorbRaw > 100 ? absorbRaw * mult / 10.0 : 0.0;
         double vEQ = absorbRaw > 100
             ? absorbVoltage + ReadByte(packet, 12) / 10.0
             : ReadByte(packet, 12) / 10.0;
@@ -33,9 +33,14 @@ public class RemoteDevice : IDeviceParser
         _data["searchwatts"] = searchwatts;
         _data["batterysize"] = batterysize;
         if (absorbRaw > 100)
+        {
             _data["absorb"] = absorbVoltage;
+        }
         else
-            _data["absorb"] = absorbRaw;
+        {
+            _data["absorb"] = 0;
+            _data["battype"] = absorbRaw;
+        }
         _data["chargeramps"] = chargeramps;
         _data["ainput"] = ainput;
         _data["revision"] = revision;
