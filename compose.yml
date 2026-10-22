@@ -1,14 +1,19 @@
-version: "3.9"
 services:
-  pymagnum:
-    image: python-pymagnum   # built from your Dockerfile
-    container_name: pymagnum-bash
-#    command: /bin/bash
-#    stdin_open: true   # equivalent to -i
-#    tty: true          # equivalent to -t
+  magnum:
+    build: .
+    image: magnum-dashboard
+    container_name: magnum
     restart: unless-stopped
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
+    group_add:
+      - dialout
+    environment:
+      MAGNUM_DEVICES: /dev/ttyUSB0
+      # MAGNUM_INTERVAL: "2"          # serial poll seconds
+      # MAGNUM_HISTORY_HOURS: "24"
     ports:
-        - 17223:17223
-
+      - "17223:17223"
+    logging:
+      driver: json-file
+      options: { max-size: "1m", max-file: "3" }

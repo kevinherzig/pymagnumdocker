@@ -1,0 +1,4 @@
+*
+!app/
+!web/dist/
+**/__pycache__

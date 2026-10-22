@@ -1,4 +1,4 @@
-**Pymagnum Hardware & Docker Image**
+# Pymagnum Hardware & Docker Image
 
 I liked the work that Charles Godwin did in creating a Python based platform for reading data from the Magnum Energy series of inverters.  After spending a good amount of time setting it up and using it, I wanted to contribute back to the community.
 
@@ -47,19 +47,60 @@ I set up the Wifi access point and Raspberry PI password through the installer. 
 
 [link](https://www.raspberrypi.com/documentation/computers/getting-started.html)
 
-**Magnum  Docker Setup**
-Once you are logged into the PI, you can install pymagnumdocker.
+## Magnum Docker setup
 
-First we need to install docker
-`sudo apt install docker.io docker-compose`
+Once you're logged into the Pi:
 
-Next pull the git repo:
-`git clone https://github.com/kevinherzig/pymagnumdocker`
-`cd pymagnumdocker`
+```sh
+sudo apt install docker.io docker-compose-plugin   # or Docker's convenience script
+sudo usermod -aG docker $USER                      # log out/in afterwards
+git clone https://github.com/kevinherzig/pymagnumdocker
+cd pymagnumdocker
+docker compose up -d --build
+```
 
-Now build the image.  On the 2W this will take a few minutes.
-`sh build.sh`
+Open `http://<pi-ip>:17223/`. The image is pure Python (no compiler, no Node), so it builds in a minute or two on the Zero 2 W.
 
-Once built you can run the image:
-`docker compose up`
+### Configuration (environment variables in `compose.yml`)
 
+| Variable | Default | Meaning |
+|---|---|---|
+| `MAGNUM_DEVICES` | `/dev/ttyUSB0` | Serial device(s), comma-separated (also map them under `devices:`) |
+| `MAGNUM_PORT` | `17223` | HTTP port |
+| `MAGNUM_INTERVAL` | `2` | Seconds between serial polls |
+| `MAGNUM_HISTORY_INTERVAL` | `60` | Seconds between history samples |
+| `MAGNUM_HISTORY_HOURS` | `24` | History kept in memory (about 1,440 rows by default) |
+| `MAGNUM_PACKETS`, `MAGNUM_TIMEOUT` | `50`, `0.005` | pymagnum reader tuning |
+
+### HTTP endpoints
+
+- `/`: dashboard (gauges, status tiles, 24 h charts, stale indicator)
+- `/api`: the original pymagnum REST JSON (`[{comm_device, data:{datetime, devices}}]`), unchanged for existing clients
+- `/api/state`: flattened summary, plus `age` (seconds since the last good read) and `error`
+- `/api/history`: in-memory ring buffer `{fields, rows}`
+- `/api/stream`: Server-Sent Events push of `/api/state` after every poll
+- `/healthz`: 200 if data is less than 60 s old (used by the Docker healthcheck)
+
+## How it works
+
+```
+app/
+  config.py   CLI flags / MAGNUM_* env vars
+  reader.py   one background thread owns the serial port; caches the latest snapshot + 24 h history
+  api.py      stdlib HTTP server: static UI, JSON API, SSE
+  main.py     wiring + clean SIGTERM shutdown
+web/          TypeScript + Vite front end (no framework, no runtime deps)
+  src/gauge.ts  tiny SVG gauge    src/chart.ts  tiny canvas chart
+  dist/         prebuilt output, committed so the Pi never needs Node
+tests/        smoke tests with a fake reader (python -m unittest)
+```
+
+HTTP requests never touch the serial port, so any number of open dashboards costs no extra RS485 traffic. All assets are served locally, so the dashboard works offline in the RV.
+
+## Development
+
+```sh
+cd web && npm ci && npm run dev       # Vite dev server, proxies /api to localhost:17223
+npm run build                         # type-check + write web/dist (commit the result)
+python -m unittest discover tests     # needs: pip install pymagnum
+```
