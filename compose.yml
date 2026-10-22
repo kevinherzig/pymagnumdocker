@@ -17,3 +17,25 @@ services:
     logging:
       driver: json-file
       options: { max-size: "1m", max-file: "3" }
+
+  # Captive-portal Wi-Fi setup (balena wifi-connect). When the Pi has no
+  # connectivity it broadcasts the "Magnum-Setup" access point; join it from a
+  # phone, pick your RV/campground network, and it reconnects. Requires
+  # NetworkManager on the host (default on Raspberry Pi OS Bookworm+).
+  wifi-connect:
+    # aarch64 = 64-bit Pi OS (recommended on Zero 2 W); use armv7hf for 32-bit.
+    image: bh.cr/balenalabs/wifi-connect-${WIFI_CONNECT_ARCH:-aarch64}
+    container_name: wifi-connect
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /run/dbus:/host/run/dbus
+    environment:
+      DBUS_SYSTEM_BUS_ADDRESS: unix:path=/host/run/dbus/system_bus_socket
+      PORTAL_SSID: Magnum-Setup
+      # PORTAL_PASSPHRASE: change-me     # optional WPA2 for the setup AP
+      CHECK_CONN_FREQ: "120"              # seconds between connectivity checks
+      ACTIVITY_TIMEOUT: "600"             # close an idle portal after 10 min, then re-check
+      PORTAL_LISTENING_PORT: "80"
