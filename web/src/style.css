@@ -21,3 +21,5 @@ main { padding:0 12px 24px; display:grid; gap:12px; }
 .chart canvas { width:100%; height:80px; display:block; margin-top:6px; }
 .pill { font-size:12px; padding:3px 10px; border-radius:999px; background:#232b36; color:var(--muted); }
 .pill.ok { color:var(--ok); } .pill.bad { color:#fff; background:var(--bad); }
+.pill.warn { color:#111; background:#ffca28; }
+[hidden] { display:none !important; }

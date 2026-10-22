@@ -23,8 +23,43 @@ def _find(devices, kind):
     return None
 
 
-def summarize(devices):
-    """Flatten pymagnum device dicts into the few numbers the dashboard plots."""
+# Plausible ranges; anything outside is published as null and listed in quality.nulled
+LIMITS = {
+    "vdc": (8, 70), "soc": (0, 100), "battery_amps": (-600, 600), "charge_amps": (-600, 600),
+    "battery_temp": (-40, 120), "ac_out_w": (0, 10000), "ac_in_w": (0, 15000),
+    "vac_in": (0, 300), "vac_out": (0, 300), "hz": (0, 70), "pv_volts": (0, 300),
+}
+INVERTER_FIELDS = ("charge_amps", "battery_temp", "ac_out_w", "ac_in_w", "vac_in", "vac_out", "hz",
+                   "mode_text", "fault_text", "invled_text", "chgled_text")
+
+
+def sanitize(summary, inverter_ok=True):
+    """Null out-of-range values; drop inverter fields when its data isn't trustworthy."""
+    nulled = []
+    for k, (lo, hi) in LIMITS.items():
+        v = summary.get(k)
+        if v is not None and not lo <= v <= hi:
+            summary[k] = None
+            nulled.append(k)
+    if not inverter_ok:
+        for k in INVERTER_FIELDS:
+            summary[k] = None
+        summary["fault"] = 0
+        summary["shore"] = False
+        if summary.get("battery_source") == "inverter":
+            summary["vdc"] = summary["battery_amps"] = None
+    if summary.get("mode_text") == "??":
+        summary["mode_text"] = None
+        nulled.append("mode_text")
+    return nulled
+
+
+def summarize(devices, bmk_present=None):
+    """Flatten pymagnum device dicts into the few numbers the dashboard plots.
+
+    Battery voltage/amps/SOC come from the BMK (battery monitor) when one is live
+    on the bus, otherwise from the inverter (no SOC). bmk_present=None means
+    "BMK present if a BMK device is in the list"."""
     inv = _find(devices, "INVERTER") or {}
     bmk = _find(devices, "BMK")
     ags = _find(devices, "AGS")
@@ -39,10 +74,13 @@ def summarize(devices):
         return round(v * a) if v is not None and a is not None else None
 
     vac_in = num(inv, "VACin")
+    use_bmk = bool(bmk) if bmk_present is None else (bmk_present and bool(bmk))
+    src = bmk if use_bmk else inv
     return {
-        "vdc": num(bmk, "vdc") if bmk else num(inv, "vdc"),
-        "soc": num(bmk, "soc"),
-        "battery_amps": num(bmk, "adc"),
+        "battery_source": "bmk" if use_bmk else ("inverter" if inv else None),
+        "vdc": num(src, "vdc"),
+        "soc": num(bmk, "soc") if use_bmk else None,
+        "battery_amps": num(src, "adc"),
         "charge_amps": num(inv, "adc"),
         "battery_temp": num(inv, "bat"),
         "ac_out_w": watts("VACout", "AACout"),
@@ -78,11 +116,17 @@ class Reader:
         self.history = deque(maxlen=config.history_size)
         self._last_hist = 0.0
         self._stop = threading.Event()
+        self._inv_seen = {}       # comm -> accepted inverter packet count
+        self._inv_last_ok = 0.0
+        self.inverter_stale_after = 30.0
+        self._bmk_seen = {}
+        self._bmk_last = 0.0
+        self.bmk_timeout = 10.0
 
     def _default_factory(self, device):
-        from magnum.magnum import Magnum
+        from .framing import SafeMagnum
         c = self.config
-        return Magnum(device=device, packets=c.packets, trace=c.trace,
+        return SafeMagnum(device=device, packets=c.packets, trace=c.trace,
                       timeout=c.timeout, cleanpackets=c.cleanpackets)
 
     def open(self):
@@ -108,11 +152,39 @@ class Reader:
                 snapshot.append({"comm_device": comm, "data": {"datetime": ts, "devices": devs}})
                 all_devices.extend(devs)
         now = time.time()
+        rejected = 0
+        for comm, r in self._readers.items():
+            acc = getattr(r, "accepted_inverter", None)
+            if acc is None:              # plain pymagnum reader (tests/legacy): trust it
+                self._inv_last_ok = now
+            elif acc != self._inv_seen.get(comm):
+                self._inv_seen[comm] = acc
+                self._inv_last_ok = now
+            rejected += getattr(r, "rejected_inverter", 0)
+            counts = getattr(r, "packet_counts", None)
+            if counts is None:           # plain reader: BMK present if pymagnum reports it
+                if any(d.get("device") == "BMK" for d in all_devices):
+                    self._bmk_last = now
+            elif counts.get("BMK_81", 0) != self._bmk_seen.get(comm, 0):
+                self._bmk_seen[comm] = counts.get("BMK_81", 0)
+                self._bmk_last = now
+        bmk_present = (now - self._bmk_last) <= self.bmk_timeout
+        inverter_ok = (now - self._inv_last_ok) <= self.inverter_stale_after
         with self._lock:
             self._error = err
             if snapshot:
                 self._snapshot = snapshot
-                self._summary = summarize(all_devices)
+                summary = summarize(all_devices, bmk_present)
+                nulled = sanitize(summary, inverter_ok)
+                summary["quality"] = {
+                    "ok": inverter_ok and not nulled,
+                    "inverter": "ok" if inverter_ok else "stale",
+                    "inverter_age": round(now - self._inv_last_ok, 1) if self._inv_last_ok else None,
+                    "nulled": nulled,
+                    "rejected_inverter_packets": rejected,
+                    "bmk_age": round(now - self._bmk_last, 1) if self._bmk_last else None,
+                }
+                self._summary = summary
                 self._updated = now
                 if now - self._last_hist >= self.config.history_interval:
                     s = self._summary

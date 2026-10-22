@@ -47,12 +47,20 @@ const tiles = tileDefs.map(([label]) => {
 charts.forEach(([, c]) => $("charts").append(c.root));
 
 let lastUpdate = 0; // epoch seconds from server
+let dataWarning = "";
 
 function render(st: State): void {
   if (st.updated) lastUpdate = Date.now() / 1000 - (st.age ?? 0);
   const s = st.summary;
   if (!s) return;
   (Object.keys(gauges) as GaugeKey[]).forEach((k) => gauges[k].set(s[k]));
+  // SOC needs a battery monitor (BMK); hide the gauge when readings come from the inverter
+  gauges.soc.root.hidden = s.battery_source !== "bmk";
+  (gauges.vdc.root.querySelector("h2") as HTMLElement).textContent =
+    s.battery_source === "bmk" ? "Battery (BMK)" : "Battery (inverter)";
+  dataWarning = s.quality && !s.quality.ok
+    ? (s.quality.inverter === "stale" ? "inverter data stale" : `ignored: ${s.quality.nulled.join(", ")}`)
+    : "";
   tileDefs.forEach(([, fn], i) => {
     const [text, cls] = fn(s);
     const v = tiles[i].querySelector(".v") as HTMLElement;
@@ -66,8 +74,8 @@ function tickStale(): void {
   if (!lastUpdate) return;
   const age = Math.round(Date.now() / 1000 - lastUpdate);
   const stale = age > STALE_AFTER;
-  pill.textContent = stale ? `stale · ${age}s ago` : "live";
-  pill.className = `pill ${stale ? "bad" : "ok"}`;
+  pill.textContent = stale ? `stale · ${age}s ago` : dataWarning ? `live · ${dataWarning}` : "live";
+  pill.className = `pill ${stale ? "bad" : dataWarning ? "warn" : "ok"}`;
 }
 
 async function loadHistory(): Promise<void> {

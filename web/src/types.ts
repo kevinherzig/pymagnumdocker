@@ -1,4 +1,6 @@
+export interface Quality { ok: boolean; inverter: "ok" | "stale"; inverter_age: number | null; nulled: string[]; rejected_inverter_packets: number; bmk_age: number | null; }
 export interface Summary {
+  battery_source: "bmk" | "inverter" | null; quality?: Quality;
   vdc: number | null; soc: number | null; battery_amps: number | null; charge_amps: number | null;
   battery_temp: number | null; ac_out_w: number | null; ac_in_w: number | null;
   vac_in: number | null; vac_out: number | null; hz: number | null; shore: boolean;
