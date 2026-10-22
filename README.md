@@ -61,6 +61,17 @@ docker compose up -d --build
 
 Open `http://<pi-ip>:17223/`. The image is pure Python (no compiler, no Node), so it builds in a minute or two on the Zero 2 W.
 
+### Wi-Fi on the road (optional captive portal)
+
+`compose.yml` also starts **balena wifi-connect**. If the Pi can't get online, it broadcasts a **Magnum-Setup** Wi-Fi network. Join it from your phone, pick the campground or RV network, and the Pi reconnects.
+
+1. Use Raspberry Pi OS **Bookworm or newer** (NetworkManager is the default). Check with `nmcli device`: `wlan0` must not be `unmanaged`.
+2. On 32-bit Pi OS, add `WIFI_CONNECT_ARCH=armv7hf` to a `.env` file (64-bit uses the default `aarch64`).
+3. `docker compose up -d` starts both services.
+4. To test: `sudo nmcli radio wifi off && sudo nmcli radio wifi on`, or take the Pi out of range. Within about 2 min, **Magnum-Setup** appears; open `http://192.168.42.1` if the captive page doesn't pop up.
+
+See [docs/wifi-setup.md](docs/wifi-setup.md) for details, caveats (it checks *internet* reachability) and the boot-partition fallback.
+
 ### Configuration (environment variables in `compose.yml`)
 
 | Variable | Default | Meaning |
