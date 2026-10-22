@@ -70,6 +70,7 @@ Open `http://<pi-ip>:17223/`. The image is pure Python (no compiler, no Node), s
 | `MAGNUM_INTERVAL` | `2` | Seconds between serial polls |
 | `MAGNUM_HISTORY_INTERVAL` | `60` | Seconds between history samples |
 | `MAGNUM_HISTORY_HOURS` | `24` | History kept in memory (about 1,440 rows by default) |
+| `MAGNUM_SERIAL_GID` | `46` | Group ID that owns the serial device (`stat -c %g /dev/ttyUSB0`). Set it in `.env` if it isn't 20 (dialout) or 46 (plugdev); the container runs as non-root |
 | `MAGNUM_PACKETS`, `MAGNUM_TIMEOUT` | `50`, `0.005` | pymagnum reader tuning |
 
 ### HTTP endpoints

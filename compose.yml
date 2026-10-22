@@ -6,8 +6,12 @@ services:
     restart: unless-stopped
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
+    # The app runs as non-root, so it needs the serial device's group.
+    # Debian/Pi OS USB serial adapters are usually dialout (20) or plugdev (46);
+    # check with `stat -c %g /dev/ttyUSB0` and override MAGNUM_SERIAL_GID in .env if different.
     group_add:
-      - dialout
+      - "20"
+      - "${MAGNUM_SERIAL_GID:-46}"
     environment:
       MAGNUM_DEVICES: /dev/ttyUSB0
       # MAGNUM_INTERVAL: "2"          # serial poll seconds
