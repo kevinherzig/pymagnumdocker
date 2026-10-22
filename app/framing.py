@@ -15,7 +15,8 @@ layout (known mode, fault and model codes, sane voltages) and locks onto the
 model/firmware revision once seen consistently. Only validated packets reach
 pymagnum's InverterDevice; anything else is never parsed as INV.
 """
-from collections import Counter
+import time
+from collections import Counter, deque
 from struct import unpack
 
 from magnum import INV, INV_C, UNKNOWN
@@ -48,6 +49,32 @@ def inverter_fields_ok(p: bytes) -> bool:
     )
 
 
+LED_WINDOW = 2.0   # s; the charger/inverter LEDs blink at ~0.9 s period
+
+
+class LedTracker:
+    """Per-frame LED history so a blinking LED reads 'Blinking' instead of flipping On/Off
+    between 2 s polls (the inverter reports the instantaneous LED level in bytes 8/9)."""
+
+    def __init__(self, window=LED_WINDOW):
+        self.window = window
+        self.frames = deque()
+
+    def add(self, t, inv, chg):
+        self.frames.append((t, inv, chg))
+        while self.frames and t - self.frames[0][0] > self.window:
+            self.frames.popleft()
+
+    def state(self, idx):
+        """idx 1 = inverter LED, 2 = charger LED -> 'On' | 'Off' | 'Blinking' | None."""
+        vals = {f[idx] for f in self.frames}
+        if not vals:
+            return None
+        if len(vals) > 1:
+            return "Blinking"
+        return "On" if vals.pop() else "Off"
+
+
 class SafeMagnum(Magnum):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -56,6 +83,8 @@ class SafeMagnum(Magnum):
         self._streak = 0
         self.rejected_inverter = 0
         self.accepted_inverter = 0
+        self.clock = time.monotonic
+        self.leds = LedTracker()
         self.packet_counts = Counter()   # packet type -> count (lets the reader see which devices are live)
 
     # -- inverter identification -------------------------------------------
@@ -76,6 +105,7 @@ class SafeMagnum(Magnum):
     def _inv_message(self, p: bytes):
         fmt = self.unpackFormats[INV]
         self.accepted_inverter += 1
+        self.leds.add(self.clock(), p[8] != 0, p[9] != 0)
         return [INV, bytearray(p), unpack(">" + fmt, p), fmt]
 
     def _parsePacket(self, packet):

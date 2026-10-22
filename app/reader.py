@@ -29,7 +29,16 @@ LIMITS = {
     "battery_temp": (-40, 120), "ac_out_w": (0, 10000), "ac_in_w": (0, 15000),
     "vac_in": (0, 300), "vac_out": (0, 300), "hz": (0, 70), "pv_volts": (0, 300),
 }
-INVERTER_FIELDS = ("charge_amps", "battery_temp", "ac_out_w", "ac_in_w", "vac_in", "vac_out", "hz",
+# Charger state from the inverter mode byte (Magnum protocol / pymagnum InverterDevice.modes).
+# The charger LED (byte 9) blinks in standby, so it is not used for state.
+CHARGER_STATES = {
+    0x00: "Standby", 0x01: "Equalize", 0x02: "Float", 0x04: "Absorb", 0x08: "Bulk",
+    0x09: "Battery Saver", 0x10: "Charging", 0x20: "Off", 0x40: "Off (Inverting)",
+    0x50: "Off (Inverter Standby)", 0x80: "Off (Search)",
+}
+CHARGING_MODES = {0x01, 0x02, 0x04, 0x08, 0x10}
+
+INVERTER_FIELDS = ("charger_state", "charging", "charge_amps", "battery_temp", "ac_out_w", "ac_in_w", "vac_in", "vac_out", "hz",
                    "mode_text", "fault_text", "invled_text", "chgled_text")
 
 
@@ -92,6 +101,8 @@ def summarize(devices, bmk_present=None):
         "mode_text": inv.get("mode_text") or None,
         "fault": inv.get("fault") or 0,
         "fault_text": inv.get("fault_text") or None,
+        "charger_state": CHARGER_STATES.get(inv.get("mode")) if inv else None,
+        "charging": (inv.get("mode") in CHARGING_MODES) if inv else None,
         "invled_text": inv.get("invled_text") or None,
         "chgled_text": inv.get("chgled_text") or None,
         "ags_status": ags.get("status_text") if ags else None,
@@ -175,6 +186,11 @@ class Reader:
             if snapshot:
                 self._snapshot = snapshot
                 summary = summarize(all_devices, bmk_present)
+                for r in self._readers.values():
+                    leds = getattr(r, "leds", None)
+                    if leds is not None and leds.frames:
+                        summary["invled_text"] = leds.state(1)
+                        summary["chgled_text"] = leds.state(2)
                 nulled = sanitize(summary, inverter_ok)
                 summary["quality"] = {
                     "ok": inverter_ok and not nulled,

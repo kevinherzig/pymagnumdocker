@@ -136,3 +136,53 @@ class BatterySourceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LedAndChargerTest(unittest.TestCase):
+    def test_capture_led_toggling_reads_blinking(self):
+        """Charger LED toggles ~0.9 s in the capture; per-frame clock from log timestamps."""
+        m = SafeMagnum(device="replay", packets=BATCH)
+        now = [0.0]
+        m.clock = lambda: now[0]
+        states, raw_toggles, prev = [], 0, None
+        with open(CAPTURE) as f:
+            lines = [l.split() for l in f if len(l.split()) > 1]
+        for i in range(0, len(lines) - BATCH, BATCH):
+            batch = lines[i:i + BATCH]
+            for p in batch:
+                now[0] = float(p[0])
+                m.stored_packets = [bytearray(bytes.fromhex("".join(p[1:])))]
+                m.packetcount = 1
+                try:
+                    m.getPackets()
+                except Exception:
+                    pass
+            f = m.leds.frames
+            if f:
+                if prev is not None and f[-1][2] != prev:
+                    raw_toggles += 1
+                prev = f[-1][2]
+                states.append(m.leds.state(2))
+        self.assertGreater(raw_toggles, 10)                 # raw LED flips between polls
+        self.assertGreater(states.count("Blinking"), len(states) * 0.8)
+        self.assertNotIn(None, states)
+
+    def test_led_tracker_sequences(self):
+        from app.framing import LedTracker
+        t = LedTracker(window=2.0)
+        for i in range(30):                       # solid on
+            t.add(i * 0.1, True, False)
+        self.assertEqual((t.state(1), t.state(2)), ("On", "Off"))
+        for i in range(30, 60):                   # charger toggling 0.9 s period
+            t.add(i * 0.1, True, (i // 5) % 2 == 0)
+        self.assertEqual(t.state(2), "Blinking")
+        for i in range(60, 90):                   # stops blinking -> settles after window
+            t.add(i * 0.1, True, False)
+        self.assertEqual(t.state(2), "Off")
+
+    def test_charger_state_from_mode(self):
+        from app.reader import summarize
+        for mode, txt, chg in [(0x00, "Standby", False), (0x08, "Bulk", True), (0x04, "Absorb", True),
+                               (0x02, "Float", True), (0x09, "Battery Saver", False), (0x40, "Off (Inverting)", False)]:
+            s = summarize([{"device": "INVERTER", "data": {"mode": mode, "chgled": 1, "chgled_text": "On"}}])
+            self.assertEqual((s["charger_state"], s["charging"]), (txt, chg))

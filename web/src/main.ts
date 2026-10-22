@@ -20,8 +20,8 @@ const gauges = {
 type GaugeKey = keyof typeof gauges;
 
 const tileDefs: [string, (s: Summary) => [string, string?]][] = [
-  ["Inverter", (s) => [s.invled_text || s.mode_text || "—"]],
-  ["Charger", (s) => [s.chgled_text || "—"]],
+  ["Inverter", (s) => [s.invled_text ? `LED ${s.invled_text}` : "—", s.invled_text === "On" ? "ok" : "muted"]],
+  ["Charger", (s) => [s.charger_state || "—", s.charging ? "ok" : "muted"]],
   ["Shore power", (s) => (s.shore ? [`Yes ${s.vac_in?.toFixed(0) ?? ""} V`, "ok"] : ["No", "muted"])],
   ["Generator (AGS)", (s) => (s.ags_status ? [s.ags_status, s.ags_running ? "ok" : undefined] : ["Not installed", "muted"])],
   ["Faults", (s) => (s.fault ? [s.fault_text || `Code ${s.fault}`, "bad"] : ["None", "ok"])],

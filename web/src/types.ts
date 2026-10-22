@@ -5,6 +5,7 @@ export interface Summary {
   battery_temp: number | null; ac_out_w: number | null; ac_in_w: number | null;
   vac_in: number | null; vac_out: number | null; hz: number | null; shore: boolean;
   mode_text: string | null; fault: number; fault_text: string | null;
+  charger_state: string | null; charging: boolean | null;
   invled_text: string | null; chgled_text: string | null;
   ags_status: string | null; ags_running: boolean | null;
   pv_volts: number | null; pt100_mode: string | null;
