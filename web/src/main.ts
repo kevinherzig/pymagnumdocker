@@ -43,7 +43,7 @@ const gauges = {
     zones: [{ to: 30, color: RED }, { to: 50, color: YEL }, { to: 100, color: GRN }] }),
   ac_out_w: new Gauge({ label: "AC out", unit: "W", min: 0, max: 3000, color: "#ffa726" }),
   ac_in_w: new Gauge({ label: "AC in", unit: "W", min: 0, max: 3600, color: "#4fc3f7" }),
-  charge_amps: new Gauge({ label: "DC amps", unit: "A", min: -150, max: 150, color: "#ab47bc" }),
+  charge_amps: new Gauge({ label: "DC amps", unit: "A  (− = discharging)", min: -150, max: 150, color: "#ab47bc" }),
   battery_temp: tempGauge(),
 };
 type GaugeKey = keyof typeof gauges;
@@ -87,6 +87,11 @@ function render(st: State): void {
   gauges.soc.root.hidden = s.battery_source !== "bmk";
   (gauges.vdc.root.querySelector("h2") as HTMLElement).textContent =
     s.battery_source === "bmk" ? "Battery (BMK)" : "Battery (inverter)";
+  // Prefer the BMK's battery current (signed: negative = discharging); fall back to inverter DC amps
+  const useBmkAmps = s.battery_source === "bmk" && s.battery_amps != null;
+  gauges.charge_amps.set(useBmkAmps ? s.battery_amps : s.charge_amps);
+  (gauges.charge_amps.root.querySelector("h2") as HTMLElement).textContent =
+    useBmkAmps ? "Battery amps (BMK)" : "DC amps (inverter)";
   dataWarning = s.quality && !s.quality.ok
     ? (s.quality.inverter === "stale" ? "inverter data stale" : `ignored: ${s.quality.nulled.join(", ")}`)
     : "";
