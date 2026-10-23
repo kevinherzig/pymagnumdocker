@@ -1,14 +1,23 @@
-version: "3.9"
 services:
-  pymagnum:
-    image: python-pymagnum   # built from your Dockerfile
-    container_name: pymagnum-bash
-#    command: /bin/bash
-#    stdin_open: true   # equivalent to -i
-#    tty: true          # equivalent to -t
+  magnum:
+    build: .
+    image: magnum-dashboard
+    container_name: magnum
     restart: unless-stopped
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
+    # The app runs as non-root, so it needs the serial device's group.
+    # Debian/Pi OS USB serial adapters are usually dialout (20) or plugdev (46);
+    # check with `stat -c %g /dev/ttyUSB0` and override MAGNUM_SERIAL_GID in .env if different.
+    group_add:
+      - "20"
+      - "${MAGNUM_SERIAL_GID:-46}"
+    environment:
+      MAGNUM_DEVICES: /dev/ttyUSB0
+      # MAGNUM_INTERVAL: "2"          # serial poll seconds
+      # MAGNUM_HISTORY_HOURS: "24"
     ports:
-        - 17223:17223
-
+      - "17223:17223"
+    logging:
+      driver: json-file
+      options: { max-size: "1m", max-file: "3" }

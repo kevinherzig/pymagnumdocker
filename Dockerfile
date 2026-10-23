@@ -1,28 +1,17 @@
-# Use the official Python 3.10 base image
-FROM python:3.10-slim
+# Runtime-only image. The web UI is prebuilt into web/dist (no Node needed on the Pi).
+FROM python:3.12-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies (optional: for building some Python packages)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+RUN pip install pymagnum==2.0.* \
+ && useradd --system --no-create-home --groups dialout magnum
 
-RUN apt-get install bash -y
-
-
-# Install pymagnum
-RUN pip install --no-cache-dir pymagnum tzlocal
-
-# Set working directory
 WORKDIR /app
+COPY app/ app/
+COPY web/dist/ web/dist/
 
-# Copy your code into the container (optional if you have a project)
-COPY . /app
-
-# Default command (can be overridden)
-#CMD ["/bin/bash"]
-
-CMD python3 magserver.py
+USER magnum
+EXPOSE 17223
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:17223/healthz', timeout=4).status == 200 else 1)"]
+CMD ["python", "-m", "app"]

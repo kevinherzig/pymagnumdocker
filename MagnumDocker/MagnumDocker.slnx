@@ -1,9 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Magnum.Serial/Magnum.Serial.csproj" />
-    <Project Path="src/Magnum.Server/Magnum.Server.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/Magnum.Serial.Tests/Magnum.Serial.Tests.csproj" />
-  </Folder>
-</Solution>
