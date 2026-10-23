@@ -41,9 +41,9 @@ const gauges = {
     zones: [{ to: 11.8, color: RED }, { to: 12.2, color: YEL }, { to: 14.8, color: GRN }, { to: 15, color: RED }] }),
   soc: new Gauge({ label: "State of charge", unit: "%", min: 0, max: 100,
     zones: [{ to: 30, color: RED }, { to: 50, color: YEL }, { to: 100, color: GRN }] }),
+  charge_amps: new Gauge({ label: "DC amps", unit: "A  (− = discharging)", min: -150, max: 150, decimals: 1, color: "#ab47bc" }),
   ac_out_w: new Gauge({ label: "AC out", unit: "W", min: 0, max: 3000, color: "#ffa726" }),
   ac_in_w: new Gauge({ label: "AC in", unit: "W", min: 0, max: 3600, color: "#4fc3f7" }),
-  charge_amps: new Gauge({ label: "DC amps", unit: "A  (− = discharging)", min: -150, max: 150, decimals: 1, color: "#ab47bc" }),
   battery_temp: tempGauge(),
 };
 type GaugeKey = keyof typeof gauges;
