@@ -6,6 +6,36 @@ import type { History, State, Summary } from "./types";
 const STALE_AFTER = 10; // seconds
 const RED = "#ef5350", YEL = "#ffca28", GRN = "#66bb6a";
 
+// Battery temp tile toggles °C/°F on click; choice persisted in localStorage.
+function tempGauge() {
+  const KEY = "tempUnit";
+  const c = new Gauge({ label: "Battery temp", unit: "°C · tap for °F", min: -10, max: 60,
+    zones: [{ to: 0, color: YEL }, { to: 45, color: GRN }, { to: 60, color: RED }] });
+  const f = new Gauge({ label: "Battery temp", unit: "°F · tap for °C", min: 14, max: 140,
+    zones: [{ to: 32, color: YEL }, { to: 113, color: GRN }, { to: 140, color: RED }] });
+  let useF = localStorage.getItem(KEY) === "F";
+  let last: number | null = null;
+  const root = document.createElement("div");
+  root.className = "temp-toggle";
+  root.style.cursor = "pointer";
+  root.tabIndex = 0;
+  root.setAttribute("role", "button");
+  const show = () => {
+    root.replaceChildren(useF ? f.root : c.root);
+    root.title = root.ariaLabel = `Battery temperature in ${useF ? "Fahrenheit" : "Celsius"}; click to switch`;
+    set(last);
+  };
+  const set = (v: number | null) => {
+    last = v;
+    (useF ? f : c).set(v == null ? v : useF ? v * 9 / 5 + 32 : v);
+  };
+  const toggle = () => { useF = !useF; localStorage.setItem(KEY, useF ? "F" : "C"); show(); };
+  root.addEventListener("click", toggle);
+  root.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  show();
+  return { root, set };
+}
+
 const gauges = {
   vdc: new Gauge({ label: "Battery", unit: "V", min: 10, max: 15, decimals: 1,
     zones: [{ to: 11.8, color: RED }, { to: 12.2, color: YEL }, { to: 14.8, color: GRN }, { to: 15, color: RED }] }),
@@ -14,8 +44,7 @@ const gauges = {
   ac_out_w: new Gauge({ label: "AC out", unit: "W", min: 0, max: 3000, color: "#ffa726" }),
   ac_in_w: new Gauge({ label: "AC in", unit: "W", min: 0, max: 3600, color: "#4fc3f7" }),
   charge_amps: new Gauge({ label: "DC amps", unit: "A", min: -150, max: 150, color: "#ab47bc" }),
-  battery_temp: new Gauge({ label: "Battery temp", unit: "°C", min: -10, max: 60,
-    zones: [{ to: 0, color: YEL }, { to: 45, color: GRN }, { to: 60, color: RED }] }),
+  battery_temp: tempGauge(),
 };
 type GaugeKey = keyof typeof gauges;
 

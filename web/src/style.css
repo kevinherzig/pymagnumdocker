@@ -23,3 +23,4 @@ main { padding:0 12px 24px; display:grid; gap:12px; }
 .pill.ok { color:var(--ok); } .pill.bad { color:#fff; background:var(--bad); }
 .pill.warn { color:#111; background:#ffca28; }
 [hidden] { display:none !important; }
+.temp-toggle { display:grid; border-radius:12px; } .temp-toggle:focus-visible { outline:2px solid #4fc3f7; }
