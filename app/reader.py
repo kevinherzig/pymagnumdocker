@@ -132,7 +132,8 @@ def identity(devices):
         "firmware": rev(inv),
         "nominal_volts": _nominal_volts(inv.get("model")),
         "stack_mode": inv.get("stackmode_text") or None,
-        "accessories": {k.lower(): rev(_find(devices, k)) or "present"
+        # REMOTE "revision" changes with each remote packet type in pymagnum, so only report presence
+        "accessories": {k.lower(): (rev(_find(devices, k)) if k != "REMOTE" else None) or "present"
                         for k in ("REMOTE", "BMK", "AGS", "PT100", "RTR", "ACLD") if _find(devices, k) is not None},
     }
 
