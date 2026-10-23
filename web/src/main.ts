@@ -1,6 +1,7 @@
 import "./style.css";
 import { Gauge } from "./gauge";
 import { Spark } from "./chart";
+import { Sortable } from "./layout";
 import type { History, State, Summary } from "./types";
 
 const STALE_AFTER = 10; // seconds
@@ -20,8 +21,11 @@ function tempGauge() {
   root.style.cursor = "pointer";
   root.tabIndex = 0;
   root.setAttribute("role", "button");
+  root.append(c.root, f.root);
   const show = () => {
-    root.replaceChildren(useF ? f.root : c.root);
+    // toggle visibility (not replaceChildren) so the drag handle appended to root survives
+    c.root.hidden = useF;
+    f.root.hidden = !useF;
     root.title = root.ariaLabel = `Battery temperature in ${useF ? "Fahrenheit" : "Celsius"}; click to switch`;
     set(last);
   };
@@ -64,19 +68,44 @@ const charts: [string, Spark][] = [
 ];
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
-Object.values(gauges).forEach((g) => $("gauges").append(g.root));
 // Battery watts = volts x amps (computed here; same source + sign convention as the amps gauge)
 const wattsGauge = new Gauge({ label: "Battery watts", unit: "W  (− = discharging)", min: -2500, max: 2500, color: "#26a69a" });
-gauges.charge_amps.root.after(wattsGauge.root);
+
+// Default gauge order (users can drag to rearrange; saved in localStorage). New ids added here
+// are appended to a saved layout automatically, so adding gauges never breaks existing layouts.
+const gaugeLayout: [string, HTMLElement, string][] = [
+  ["vdc", gauges.vdc.root, "battery voltage"],
+  ["charge_amps", gauges.charge_amps.root, "amps"],
+  ["battery_watts", wattsGauge.root, "watts"],
+  ["soc", gauges.soc.root, "state of charge"],
+  ["ac_out_w", gauges.ac_out_w.root, "AC out"],
+  ["ac_in_w", gauges.ac_in_w.root, "AC in"],
+  ["battery_temp", gauges.battery_temp.root, "battery temperature"],
+];
+const gaugeSort = new Sortable($("gauges"), "layout.gauges", gaugeLayout.map(([id]) => id));
+gaugeLayout.forEach(([id, el, label]) => { $("gauges").append(el); gaugeSort.add(id, el, label); });
+gaugeSort.apply();
+
+const tileSort = new Sortable($("tiles"), "layout.tiles", tileDefs.map(([label]) => tileId(label)));
 const tiles = tileDefs.map(([label]) => {
   const d = document.createElement("div");
   d.className = "card tile";
   d.innerHTML = `<h2></h2><div class="v">—</div>`;
   (d.querySelector("h2") as HTMLElement).textContent = label;
   $("tiles").append(d);
+  tileSort.add(tileId(label), d, label);
   return d;
 });
+tileSort.apply();
+function tileId(label: string): string { return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
 charts.forEach(([, c]) => $("charts").append(c.root));
+
+// Small "Reset layout" link; only shown once something has been moved.
+const resetBtn = $("reset-layout");
+const syncReset = () => { resetBtn.hidden = gaugeSort.isDefault() && tileSort.isDefault(); };
+gaugeSort.onChange = tileSort.onChange = syncReset;
+resetBtn.addEventListener("click", () => { gaugeSort.reset(); tileSort.reset(); });
+syncReset();
 
 let lastUpdate = 0; // epoch seconds from server
 let dataWarning = "";
@@ -107,7 +136,8 @@ function render(st: State): void {
     const [text, cls] = fn(s);
     const v = tiles[i].querySelector(".v") as HTMLElement;
     v.textContent = text;
-    tiles[i].className = `card tile ${cls ?? ""}`;
+    tiles[i].classList.remove("ok", "bad", "muted"); // classList (not className) keeps drag state intact
+    if (cls) tiles[i].classList.add(cls);
   });
 }
 
