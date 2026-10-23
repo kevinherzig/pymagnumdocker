@@ -43,7 +43,7 @@ const gauges = {
     zones: [{ to: 30, color: RED }, { to: 50, color: YEL }, { to: 100, color: GRN }] }),
   ac_out_w: new Gauge({ label: "AC out", unit: "W", min: 0, max: 3000, color: "#ffa726" }),
   ac_in_w: new Gauge({ label: "AC in", unit: "W", min: 0, max: 3600, color: "#4fc3f7" }),
-  charge_amps: new Gauge({ label: "DC amps", unit: "A  (− = discharging)", min: -150, max: 150, color: "#ab47bc" }),
+  charge_amps: new Gauge({ label: "DC amps", unit: "A  (− = discharging)", min: -150, max: 150, decimals: 1, color: "#ab47bc" }),
   battery_temp: tempGauge(),
 };
 type GaugeKey = keyof typeof gauges;
@@ -65,6 +65,9 @@ const charts: [string, Spark][] = [
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 Object.values(gauges).forEach((g) => $("gauges").append(g.root));
+// Battery watts = volts x amps (computed here; same source + sign convention as the amps gauge)
+const wattsGauge = new Gauge({ label: "Battery watts", unit: "W  (− = discharging)", min: -2500, max: 2500, color: "#26a69a" });
+gauges.charge_amps.root.after(wattsGauge.root);
 const tiles = tileDefs.map(([label]) => {
   const d = document.createElement("div");
   d.className = "card tile";
@@ -92,6 +95,10 @@ function render(st: State): void {
   gauges.charge_amps.set(useBmkAmps ? s.battery_amps : s.charge_amps);
   (gauges.charge_amps.root.querySelector("h2") as HTMLElement).textContent =
     useBmkAmps ? "Battery amps (BMK)" : "DC amps (inverter)";
+  const amps = useBmkAmps ? s.battery_amps : s.charge_amps;
+  wattsGauge.set(s.vdc != null && amps != null ? s.vdc * amps : null);
+  (wattsGauge.root.querySelector("h2") as HTMLElement).textContent =
+    useBmkAmps ? "Battery watts (BMK)" : "DC watts (inverter)";
   dataWarning = s.quality && !s.quality.ok
     ? (s.quality.inverter === "stale" ? "inverter data stale" : `ignored: ${s.quality.nulled.join(", ")}`)
     : "";
