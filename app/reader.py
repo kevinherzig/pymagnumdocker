@@ -109,6 +109,31 @@ def summarize(devices, bmk_present=None):
         "ags_running": ags.get("running") if ags else None,
         "pv_volts": num(pt, "pv_voltage"),
         "pt100_mode": pt.get("mode_text") if pt else None,
+        "bmk_fault_text": (bmk.get("Fault_Text") or None) if bmk else None,
+        "identity": identity(devices),
+    }
+
+
+def _nominal_volts(model):
+    # pymagnum InverterDevice: model <= 50 -> 12 V, <= 107 -> 24 V, <= 150 -> 48 V
+    if not isinstance(model, int) or model <= 0:
+        return None
+    return 12 if model <= 50 else 24 if model <= 107 else 48 if model <= 150 else None
+
+
+def identity(devices):
+    """Static-ish identity of the system for the page header (model, firmware, accessories)."""
+    inv = _find(devices, "INVERTER") or {}
+    rev = lambda d: (str(d.get("revision")) if d and d.get("revision") not in (None, "", "0.0") else None)  # noqa: E731
+    model_text = inv.get("model_text") or None
+    return {
+        "model": inv.get("model") or None,
+        "model_text": model_text if model_text != "Unknown" else None,
+        "firmware": rev(inv),
+        "nominal_volts": _nominal_volts(inv.get("model")),
+        "stack_mode": inv.get("stackmode_text") or None,
+        "accessories": {k.lower(): rev(_find(devices, k)) or "present"
+                        for k in ("REMOTE", "BMK", "AGS", "PT100", "RTR", "ACLD") if _find(devices, k) is not None},
     }
 
 
@@ -186,6 +211,7 @@ class Reader:
             if snapshot:
                 self._snapshot = snapshot
                 summary = summarize(all_devices, bmk_present)
+                summary["comm_device"] = ", ".join(c for c in self._readers if any(x["comm_device"] == c for x in snapshot)) or None
                 for r in self._readers.values():
                     leds = getattr(r, "leds", None)
                     if leds is not None and leds.frames:

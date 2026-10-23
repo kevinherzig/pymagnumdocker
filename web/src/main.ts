@@ -85,6 +85,7 @@ function render(st: State): void {
   if (st.updated) lastUpdate = Date.now() / 1000 - (st.age ?? 0);
   const s = st.summary;
   if (!s) return;
+  renderHeader(s);
   (Object.keys(gauges) as GaugeKey[]).forEach((k) => gauges[k].set(s[k]));
   // SOC needs a battery monitor (BMK); hide the gauge when readings come from the inverter
   gauges.soc.root.hidden = s.battery_source !== "bmk";
@@ -108,6 +109,32 @@ function render(st: State): void {
     v.textContent = text;
     tiles[i].className = `card tile ${cls ?? ""}`;
   });
+}
+
+const ACC_NAMES: Record<string, string> = { remote: "Remote", bmk: "BMK", ags: "AGS", pt100: "PT100", rtr: "Router", acld: "ACLD" };
+
+// Header: inverter identity (model · firmware · nominal V · stack mode), accessories + port,
+// then the live status line the original page had (system/fault, mode, VDC, Hz, last update).
+function renderHeader(s: Summary): void {
+  const id = s.identity;
+  const parts: string[] = [];
+  if (id?.model_text) parts.push(`Magnum ${id.model_text}`);
+  if (id?.firmware) parts.push(`firmware ${id.firmware}`);
+  if (id?.nominal_volts) parts.push(`${id.nominal_volts} V`);
+  if (id?.stack_mode) parts.push(id.stack_mode);
+  const title = parts.length && id?.model_text ? parts.join(" · ") : "Magnum Energy";
+  $("title").textContent = title;
+  document.title = title;
+  const acc = Object.entries(id?.accessories ?? {}).map(([k, v]) => `${ACC_NAMES[k] ?? k.toUpperCase()} ${v === "present" ? "✓" : v}`);
+  if (s.comm_device) acc.push(s.comm_device);
+  $("meta").textContent = acc.join(" · ");
+  const fault = s.fault ? (s.fault_text || `Fault ${s.fault}`) : (s.bmk_fault_text && s.bmk_fault_text !== "Normal" ? `BMK ${s.bmk_fault_text}` : "Normal");
+  const st = [`System: ${fault}`];
+  if (s.mode_text) st.push(`Inverter: ${s.mode_text}`);
+  if (s.vdc != null) st.push(`${s.vdc.toFixed(1)} VDC`);
+  if (s.hz != null) st.push(`${s.hz.toFixed(1)} Hz`);
+  if (lastUpdate) st.push(`Updated ${new Date(lastUpdate * 1000).toLocaleTimeString()}`);
+  $("status").textContent = st.join(" · ");
 }
 
 function tickStale(): void {
